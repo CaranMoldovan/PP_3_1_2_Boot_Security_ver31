@@ -12,6 +12,7 @@ import ru.kata.spring.boot_security.demo.service.UserService;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -50,13 +51,16 @@ public class AdminController {
                           @RequestParam String lastname,
                           @RequestParam String email,
                           @RequestParam String password,
-                          @RequestParam String role) {
+                          @RequestParam List<String> roles) {
         User user = new User(username, lastname, email, password);
         userService.add(user);
-        userService.addRoleToUser(role, user);
+        for (String role : roles) {
+            userService.addRoleToUser(role, user);
+        }
 
         return "redirect:/admin";
     }
+
 
 
     @PostMapping(value = "/admin/update")
