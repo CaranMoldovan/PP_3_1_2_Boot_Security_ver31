@@ -1,33 +1,31 @@
 package ru.kata.spring.boot_security.demo.controllers;
 
-
+import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.*;
 import ru.kata.spring.boot_security.demo.model.User;
 import ru.kata.spring.boot_security.demo.service.UserService;
 
-
+import javax.validation.Valid;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
 
 @Controller
+@RequestMapping(value = "/admin")
 public class AdminController {
     private final UserService userService;
 
     public AdminController(UserService userService) {
         this.userService = userService;
-
     }
 
-
-    @GetMapping(value = "/admin")
+    @GetMapping(value = "")
     public String printUsers(Model model) {
         Map<User, String> usersWithRoles = userService
                 .getAllUsers()
@@ -39,55 +37,37 @@ public class AdminController {
                         (oldValue, newValue) -> oldValue,
                         LinkedHashMap::new
                 ));
-
+        List<Long> ids = userService.getAllIds();
         model.addAttribute("usersWithRoles", usersWithRoles);
+        model.addAttribute("user", new User());
+        model.addAttribute("ids", ids);
 
         return "Admin";
     }
 
+    @PostMapping(value = "/add")
+    public String addUser(@ModelAttribute("user") @Valid User user, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
 
-    @PostMapping(value = "/admin/add")
-    public String addUser(@RequestParam String username,
-                          @RequestParam String lastname,
-                          @RequestParam String email,
-                          @RequestParam String password,
-                          @RequestParam List<String> roles) {
-        User user = new User(username, lastname, email, password);
+
+            return "/Admin";
+        }
         userService.add(user);
-        for (String role : roles) {
-            userService.addRoleToUser(role, user);
-        }
-
         return "redirect:/admin";
     }
 
-
-
-    @PostMapping(value = "/admin/update")
-    public String updateUser(@RequestParam Long id,
-                             @RequestParam String username,
-                             @RequestParam String lastname,
-                             @RequestParam String email,
-                             @RequestParam String password) {
-        User updateUser = userService.findById(id);
-
-        if (updateUser != null) {
-            updateUser.setUsername(username);
-            updateUser.setLastname(lastname);
-            updateUser.setEmail(email);
-            updateUser.setPassword(password);
-            userService.update(updateUser);
+    @PostMapping(value = "/update")
+    public String updateUser(@ModelAttribute("user") @Valid User user, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            return "/Admin";
         }
-
+        userService.update(user);
         return "redirect:/admin";
     }
 
-
-    @PostMapping(value = "/admin/delete")
-    public String deleteUser(@RequestParam Long id) {
+    @PostMapping(value = "/delete")
+    public String deleteUser(@RequestParam("id") Long id) {
         userService.delete(id);
-
         return "redirect:/admin";
     }
-
 }
