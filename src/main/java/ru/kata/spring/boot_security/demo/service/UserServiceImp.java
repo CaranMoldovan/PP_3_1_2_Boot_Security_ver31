@@ -17,6 +17,7 @@ import ru.kata.spring.boot_security.demo.repository.UserRepository;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 
@@ -50,12 +51,28 @@ public class UserServiceImp implements UserService {
     @Transactional
     @Override
     public void update(User user) {
-        User userToSave = new User();
-        userToSave.setUsername(user.getUsername());
-        userToSave.setPassword(encoder.encode(user.getPassword()));
-        userToSave.setRoles(user.getRoles());
-        userRepository.save(userToSave);
+        // Получаем пользователя из базы данных по его идентификатору
+        Optional<User> optionalUser = userRepository.findById(user.getId());
+        if (optionalUser.isPresent()) {
+            User existingUser = optionalUser.get();
+
+            // Обновляем поля пользователя на основе переданных значений
+            existingUser.setUsername(user.getUsername());
+            existingUser.setLastname(user.getLastname());
+            existingUser.setEmail(user.getEmail());
+            existingUser.setPassword(encoder.encode(user.getPassword()));
+            existingUser.getRoles().clear();
+
+            // Добавляем новые роли
+            for (Role role : user.getRoles()) {
+                existingUser.getRoles().add(role);
+            }
+
+            // Сохраняем обновленного пользователя с новыми ролями и полями
+            userRepository.save(existingUser);
+        }
     }
+
 
     @Transactional
     @Override

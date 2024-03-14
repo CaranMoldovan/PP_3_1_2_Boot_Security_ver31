@@ -36,6 +36,7 @@ public class User implements UserDetails {
     @Pattern(regexp = "^[^\\d\\W]+$", message = "Username cannot contain numbers or special characters")
     @NotBlank(message = "Username is required")
     @Size(min = 2, max = 50, message = "Username must be between 2 and 50 characters")
+    @Column(unique = true)
     private String username;
     @Pattern(regexp = "^[^\\d\\W]+$", message = "Username cannot contain numbers or special characters")
     @NotBlank(message = "Lastname is required")
