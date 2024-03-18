@@ -6,6 +6,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import ru.kata.spring.boot_security.demo.model.User;
 
 import java.util.List;
+import java.util.Map;
 
 public interface UserService extends UserDetailsService {
     void add(User user);
@@ -14,7 +15,8 @@ public interface UserService extends UserDetailsService {
 
     void delete(Long id);
 
-    List<User> getAllUsers();
+    public Map<User,String> getAllUsers();
+    public User findByEmail(String email);
 
     String getUserRoles(User user);
 
@@ -26,5 +28,4 @@ public interface UserService extends UserDetailsService {
 
     @Override
     UserDetails loadUserByUsername(String username) throws UsernameNotFoundException;
-    public List<Long> getAllIds();
 }

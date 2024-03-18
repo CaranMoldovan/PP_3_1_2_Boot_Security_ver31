@@ -40,12 +40,8 @@ public class RoleServiceImp implements RoleService {
     @Transactional(readOnly = true)
     public Set<Role> getSetOfRoles(List<String> rolesName){
         Set<Role> roleSet = new HashSet<>();
-        for (String roleId: rolesName) {
-            Long id = Long.parseLong(roleId);
-            Role role = roleRepository.findById(id).orElse(null);
-            if (role != null) {
-                roleSet.add(role);
-            }
+        for (String name: rolesName) {
+            roleSet.add(roleRepository.findByName(name));
         }
         return roleSet;
     }

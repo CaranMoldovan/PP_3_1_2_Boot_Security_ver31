@@ -1,0 +1,19 @@
+main {
+    height: calc(100vh - 50px);
+    overflow: auto;
+}
+.logout-button:hover {
+    color: red !important;
+}
+#editUserId, #editFirstName,
+#editLastName, #editAge,
+#editEmail, #editPassword,
+#editPassword, #editRole {
+    text-align: center;
+}
+#deleteUserId, #deleteUserFirstName,
+#deleteUserLastName, #deleteUserAge,
+#deleteUserEmail, #deleteUserPassword,
+#deleteUserPassword, #deleteUserRole {
+    text-align: center;
+}

@@ -32,10 +32,10 @@ public class DatabaseLoader implements CommandLineRunner {
         this.roleService.save(adminRole);
         this.roleService.save(userRole);
 
-        User admin = new User("admin", "Admin", "admin@mail.ru", "admin");
+        User admin = new User("admin", "Admin", "admin@mail.ru",21, "admin");
         admin.setRoles(new HashSet<>(List.of(adminRole, userRole)));
 
-        User user = new User("user", "User", "user@mail.ru", "user");
+        User user = new User("user", "User", "user@mail.ru",21, "user");
         user.setRoles(new HashSet<>(List.of(userRole)));
 
         this.userService.add(admin);

@@ -15,14 +15,13 @@ import ru.kata.spring.boot_security.demo.model.Role;
 import ru.kata.spring.boot_security.demo.model.User;
 import ru.kata.spring.boot_security.demo.repository.UserRepository;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
 @Service
-public class UserServiceImp implements UserService {
+public class UserServiceImp implements UserService, UserDetailsService {
 
     private final UserRepository userRepository;
 
@@ -40,14 +39,20 @@ public class UserServiceImp implements UserService {
     @Override
     public void add(User user) {
         User userToSave = new User();
-        userToSave.setUsername(user.getUsername());
+        userToSave.setFirstname(user.getFirstname());
         userToSave.setLastname(user.getLastname());
         userToSave.setEmail(user.getEmail());
+        userToSave.setAge(user.getAge());
         userToSave.setPassword(encoder.encode(user.getPassword()));
         userToSave.setRoles(user.getRoles());
         userRepository.save(userToSave);
     }
 
+    @Transactional(readOnly = true)
+    @Override
+    public User findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
     @Transactional
     @Override
     public void update(User user) {
@@ -57,9 +62,10 @@ public class UserServiceImp implements UserService {
             User existingUser = optionalUser.get();
 
             // Обновляем поля пользователя на основе переданных значений
-            existingUser.setUsername(user.getUsername());
+            existingUser.setFirstname(user.getFirstname());
             existingUser.setLastname(user.getLastname());
             existingUser.setEmail(user.getEmail());
+            existingUser.setAge(user.getAge());
             existingUser.setPassword(encoder.encode(user.getPassword()));
             existingUser.getRoles().clear();
 
@@ -82,15 +88,25 @@ public class UserServiceImp implements UserService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<User> getAllUsers() {
-        return userRepository.findAll(Sort.by("id"));
+    public Map<User,String> getAllUsers() {
+        return userRepository
+                .findAll(Sort.by("id"))
+                .stream()
+                .sorted(Comparator.comparing(User::getId))
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        this::getUserRoles,
+                        (oldValue, newValue) -> oldValue,
+                        LinkedHashMap::new
+                ));
     }
+
 
 
     @Transactional(readOnly = true)
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username);
+        User user = userRepository.findByEmail(username);
 
         if (user == null) {
             throw new UsernameNotFoundException(username);
@@ -104,19 +120,13 @@ public class UserServiceImp implements UserService {
                 User(user.getUsername(), user.getPassword(), authorities);
     }
 
-    @Transactional(readOnly = true)
-    public User findByUsername(String username) {
-        return userRepository.findByUsername(username);
-    }
+
 
     @Transactional(readOnly = true)
-    public List<Long> getAllIds() {
-        List<Long> ids = new ArrayList<>();
-        for (User user : getAllUsers()) {
-            ids.add(user.getId());
-        }
-        return ids;
+    public User findByUsername(String username) {
+        return userRepository.findByEmail(username);
     }
+
 
     @Transactional(readOnly = true)
     @Override

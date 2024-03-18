@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+    <link href="/css/login.css" rel="stylesheet">
+    <link rel="icon" href="/favIcon/loginPageIcon.ico" type="image/x-icon">
+
+    <title>Login page</title>
+</head>
+<body>
+<div class="container">
+    <form class="form-signin" method="post" th:action="@{/login}">
+        <h2 class="form-signin-heading my-form-header text-center">Please sign in</h2>
+        <div th:if="${param.error}" class="alert alert-danger">Invalid email or password.</div>
+        <div th:if="${param.logout}" class="alert alert-success text-center mt-4">
+            You have successfully logged out of your account
+        </div>
+        <input type="text" id="login" name="username" class="form-control" placeholder="Email address" required autofocus>
+        <input type="password" id="password" name="password" class="form-control mt-2" placeholder="Password" required>
+        <button class="btn btn-lg btn-primary w-100 mt-2" type="submit">Sign in</button>
+    </form>
+</div>
+</body>
+</html>
