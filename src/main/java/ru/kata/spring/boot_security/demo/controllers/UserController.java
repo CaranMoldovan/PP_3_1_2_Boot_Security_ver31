@@ -24,18 +24,12 @@ public class UserController {
 
     @GetMapping("/user")
     public String getUserPage(Model model, Principal principal) {
-        String username = principal.getName();
-        User user = userService.findByUsername(username);
+        User user = userService.findByEmail(principal.getName());
+        String userRoles = userService.getUserRoles(user);
         model.addAttribute("user", user);
-        return "user";
+        model.addAttribute("userRoles", userRoles);
+        return "userPage";
     }
 
-
-    @GetMapping("/user/{id}")
-    public String getUserPageById(@PathVariable Long id, Model model) {
-        User user = userService.findById(id);
-        model.addAttribute("user", user);
-        return "user";
-    }
 
 }

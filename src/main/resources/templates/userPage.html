@@ -12,7 +12,7 @@
 <header class="bg-dark text-white p-1 d-flex justify-content-between ">
     <div class="ms-3 m-auto">
         <strong>
-            <th:block th:text="${currentUser.getEmail()}"></th:block>
+            <th:block th:text="${user.getEmail()}"></th:block>
         </strong>
         with roles:
         <th:block th:text="${userRoles}"></th:block>
@@ -56,11 +56,11 @@
                             </thead>
                             <tbody class="text-center table-light">
                             <tr>
-                                <td th:text="${currentUser.getId()}"></td>
-                                <td th:text="${currentUser.getFirstname()}"></td>
-                                <td th:text="${currentUser.getLastname()}"></td>
-                                <td th:text="${currentUser.getAge()}"></td>
-                                <td th:text="${currentUser.getEmail()}"></td>
+                                <td th:text="${user.getId()}"></td>
+                                <td th:text="${user.getFirstname()}"></td>
+                                <td th:text="${user.getLastname()}"></td>
+                                <td th:text="${user.getAge()}"></td>
+                                <td th:text="${user.getEmail()}"></td>
                                 <td th:text="${userRoles}"></td>
                             </tr>
                             </tbody>
