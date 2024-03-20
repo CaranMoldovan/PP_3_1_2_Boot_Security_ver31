@@ -1,31 +1,34 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="_csrf" data-th-content="${_csrf.token}" />
+    <meta name="_csrf_header" data-th-content="${_csrf.headerName}"/>
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
     <link href="/css/user.css" rel="stylesheet">
     <link rel="icon" href="/favIcon/userPageIcon.ico" type="image/x-icon">
+
     <title>User page</title>
 </head>
 <body>
 <header class="bg-dark text-white p-1 d-flex justify-content-between ">
     <div class="ms-3 m-auto">
-        <strong>
-            <th:block th:text="${user.getEmail()}"></th:block>
-        </strong>
-        with roles:
-        <th:block th:text="${userRoles}"></th:block>
+        <strong id="user-email"></strong>
+        with roles: <span id="user-roles"></span>
     </div>
     <div>
-        <form action="/logout" method="post" class="logout-form">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <form id="logout-form" method="post" class="logout-form">
+            <input type="hidden" id="csrf-name" name="_csrf" value=""/>
             <button type="submit" class="btn btn-link text-secondary text-decoration-none logout-button">
                 <strong>Logout</strong>
             </button>
         </form>
     </div>
 </header>
+
 <div class="container-fluid">
     <div class="row">
         <nav class="col-sm-2 col-10 bg-light p-0">
@@ -56,12 +59,12 @@
                             </thead>
                             <tbody class="text-center table-light">
                             <tr>
-                                <td th:text="${user.getId()}"></td>
-                                <td th:text="${user.getFirstname()}"></td>
-                                <td th:text="${user.getLastname()}"></td>
-                                <td th:text="${user.getAge()}"></td>
-                                <td th:text="${user.getEmail()}"></td>
-                                <td th:text="${userRoles}"></td>
+                                <td id="current-user-id"></td>
+                                <td id="current-user-firstname"></td>
+                                <td id="current-user-lastname"></td>
+                                <td id="current-user-age"></td>
+                                <td id="current-user-email"></td>
+                                <td id="current-user-roles"></td>
                             </tr>
                             </tbody>
                         </table>
@@ -71,5 +74,10 @@
         </main>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js" integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+" crossorigin="anonymous"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="/js/userPage.js"></script>
 </body>
 </html>
