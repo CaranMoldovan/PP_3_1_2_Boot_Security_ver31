@@ -34,19 +34,19 @@ public class AdminRestController {
 
     @PostMapping("/add")
     public ResponseEntity<String> addUser(@RequestBody UserDto userDto) {
-        userService.add(userMapper.toModel(userDto));
+        userService.add(userDto);
         return ResponseEntity.ok("User added successfully");
     }
 
-    @PutMapping("/update")
+    @PutMapping ("/update")
     public ResponseEntity<String> updateUser(@RequestBody UserDto userDto) {
-        userService.update(userMapper.toModel(userDto));
+        userService.update(userDto);
         return ResponseEntity.ok("User updated successfully");
     }
 
     @DeleteMapping("/delete")
     public ResponseEntity<String> deleteUser(@RequestBody UserDto userDto) {
-        userService.delete(Long.getLong(userDto.getId()));
+        userService.delete(userDto.getId());
         return ResponseEntity.ok("User deleted successfully");
     }
 }

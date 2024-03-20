@@ -38,12 +38,17 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .anyRequest().authenticated()
                 .and()
                 .formLogin().successHandler(successUserHandler)
-                .loginPage("/login").loginProcessingUrl("/process_login")
+                .loginPage("/login").loginProcessingUrl("/login")
 
                 .permitAll()
                 .and()
                 .logout()
+                .logoutUrl("/logout") // Указываем URL для выхода из системы
+                .logoutSuccessUrl("/login?logout") // Указываем URL, на который пользователь будет перенаправлен после успешного выхода из системы
+                .invalidateHttpSession(true)
+                .deleteCookies("JSESSIONID") // Если необходимо, удаляем cookies
                 .permitAll();
+
 
     }
 @Bean

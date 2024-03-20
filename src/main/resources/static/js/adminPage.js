@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             user.lastname,
                             user.age,
                             user.email,
-                            user.roles.map(role => role.name.replace('ROLE_', '')).sort().join(' ')
+                            user.roles.map(role => "ROLE_" + role.name.toUpperCase()).sort().join(' ')
                         );
                     });
 
@@ -127,9 +127,11 @@ document.addEventListener('DOMContentLoaded', function () {
                             user.lastname,
                             user.age,
                             user.email,
-                            user.roles.map(role => role.name.replace('ROLE_', '')).sort().join(' ')
+                            user.roles.map(role => "ROLE_" + role.name.toUpperCase()).sort().join(' ')
                         );
                     });
+
+
                 });
             })
             .catch(error => {
@@ -237,6 +239,7 @@ document.addEventListener('DOMContentLoaded', function () {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(newUser)
+
         })
             .then(response => {
                 if (!response.ok) {

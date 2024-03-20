@@ -11,9 +11,13 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.kata.spring.boot_security.demo.dto.RoleDto;
+import ru.kata.spring.boot_security.demo.dto.UserDto;
 import ru.kata.spring.boot_security.demo.model.Role;
 import ru.kata.spring.boot_security.demo.model.User;
+import ru.kata.spring.boot_security.demo.repository.RoleRepository;
 import ru.kata.spring.boot_security.demo.repository.UserRepository;
+import ru.kata.spring.boot_security.demo.util.UserMapper;
 
 import java.util.*;
 import java.util.function.Function;
@@ -27,25 +31,26 @@ public class UserServiceImp implements UserService, UserDetailsService {
 
     private final RoleService roleService;
     private final PasswordEncoder encoder;
+    private final RoleRepository roleRepository;
+    private final UserMapper userMapper;
 
     @Autowired
-    public UserServiceImp(UserRepository userRepository, RoleService roleService, @Lazy PasswordEncoder encoder) {
+    public UserServiceImp(UserRepository userRepository, RoleService roleService, @Lazy PasswordEncoder encoder, RoleRepository roleRepository, UserMapper userMapper) {
         this.userRepository = userRepository;
         this.roleService = roleService;
         this.encoder = encoder;
+        this.roleRepository = roleRepository;
+        this.userMapper = userMapper;
     }
 
     @Transactional
     @Override
-    public void add(User user) {
-        User userToSave = new User();
-        userToSave.setFirstname(user.getFirstname());
-        userToSave.setLastname(user.getLastname());
-        userToSave.setEmail(user.getEmail());
-        userToSave.setAge(user.getAge());
-        userToSave.setPassword(encoder.encode(user.getPassword()));
-        userToSave.setRoles(user.getRoles());
-        userRepository.save(userToSave);
+    public void add(UserDto userDto) {
+        User user = userMapper.toModel(userDto);
+        user.setPassword(encoder.encode(user.getPassword()));
+        setRolesToUser(user,userDto.getRoles());
+
+        userRepository.save(user);
     }
 
     @Transactional(readOnly = true)
@@ -53,28 +58,20 @@ public class UserServiceImp implements UserService, UserDetailsService {
     public User findByEmail(String email) {
         return userRepository.findByEmail(email);
     }
+
     @Transactional
     @Override
-    public void update(User user) {
-        // Получаем пользователя из базы данных по его идентификатору
-        Optional<User> optionalUser = userRepository.findById(user.getId());
-        if (optionalUser.isPresent()) {
-            User existingUser = optionalUser.get();
+    public void update(UserDto userDto) {
+        User existingUser = userRepository.findById(userDto.getId()).orElse(null);
+        setRolesToUser(existingUser,userDto.getRoles());
 
-            // Обновляем поля пользователя на основе переданных значений
-            existingUser.setFirstname(user.getFirstname());
-            existingUser.setLastname(user.getLastname());
-            existingUser.setEmail(user.getEmail());
-            existingUser.setAge(user.getAge());
-            existingUser.setPassword(encoder.encode(user.getPassword()));
-            existingUser.getRoles().clear();
-
-            // Добавляем новые роли
-            for (Role role : user.getRoles()) {
-                existingUser.getRoles().add(role);
-            }
-
-            // Сохраняем обновленного пользователя с новыми ролями и полями
+        if (existingUser != null) {
+            existingUser.setFirstname(userDto.getFirstname());
+            existingUser.setLastname(userDto.getLastname());
+            existingUser.setAge(userDto.getAge());
+            existingUser.setEmail(userDto.getEmail());
+            existingUser.setPassword(encoder.encode(userDto.getPassword()));
+            roleService.getSetOfRoles(userDto.getRoles());
             userRepository.save(existingUser);
         }
     }
@@ -88,7 +85,7 @@ public class UserServiceImp implements UserService, UserDetailsService {
 
     @Transactional(readOnly = true)
     @Override
-    public Map<User,String> getAllUsers() {
+    public Map<User, String> getAllUsers() {
         return userRepository
                 .findAll(Sort.by("id"))
                 .stream()
@@ -100,7 +97,6 @@ public class UserServiceImp implements UserService, UserDetailsService {
                         LinkedHashMap::new
                 ));
     }
-
 
 
     @Transactional(readOnly = true)
@@ -121,7 +117,6 @@ public class UserServiceImp implements UserService, UserDetailsService {
     }
 
 
-
     @Transactional(readOnly = true)
     public User findByUsername(String username) {
         return userRepository.findByEmail(username);
@@ -136,18 +131,17 @@ public class UserServiceImp implements UserService, UserDetailsService {
                 .collect(Collectors.joining(", "));
     }
 
-    @Transactional
-    @Override
-    public void addRoleToUser(String roleName, User user) {
-        Role role = roleService.findByName(roleName);
-        user.getRoles().add(role);
-        userRepository.save(user);
-    }
 
-    @Transactional(readOnly = true)
-    @Override
-    public User findById(Long id) {
-        return userRepository.findById(id).orElse(null);
+
+
+
+    private void setRolesToUser(User user, Set<RoleDto> roleDtoSet) {
+        Set<Role> roles = roleDtoSet.stream()
+                .map(roleDto -> roleRepository.findByName("ROLE_" + roleDto.getName()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        user.setRoles(roles);
     }
 
 }
