@@ -9,6 +9,9 @@ on:
       - "android-study-tracker/**"
       - ".github/workflows/build-apk.yml"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,3 +38,15 @@ jobs:
         with:
           name: StudyTracker-debug-apk
           path: android-study-tracker/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android-study-tracker/app/build/outputs/apk/debug/app-debug.apk StudyTracker.apk
+          gh release delete studytracker-latest --cleanup-tag --yes || true
+          gh release create studytracker-latest StudyTracker.apk \
+            --title "StudyTracker APK (последняя сборка)" \
+            --notes "Установочный файл приложения StudyTracker. Скачайте StudyTracker.apk на телефон и откройте его для установки." \
+            --target "$GITHUB_SHA" \
+            --prerelease
