@@ -35,6 +35,21 @@ interface TaskDao {
 }
 
 @Dao
+interface BookDao {
+    @Query("SELECT * FROM books ORDER BY title")
+    fun getAll(): Flow<List<Book>>
+
+    @Insert
+    suspend fun insert(book: Book): Long
+
+    @Query("UPDATE books SET lastPage = :page WHERE id = :bookId")
+    suspend fun updatePage(bookId: Long, page: Int)
+
+    @Delete
+    suspend fun delete(book: Book)
+}
+
+@Dao
 interface SessionDao {
     @Query("SELECT * FROM sessions ORDER BY startTime DESC")
     fun getAll(): Flow<List<StudySession>>

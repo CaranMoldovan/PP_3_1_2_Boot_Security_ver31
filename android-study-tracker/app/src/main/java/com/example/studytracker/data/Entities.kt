@@ -51,6 +51,26 @@ data class StudySession(
     val durationSeconds: Long
 )
 
+@Entity(
+    tableName = "books",
+    foreignKeys = [
+        ForeignKey(
+            entity = Subject::class,
+            parentColumns = ["id"],
+            childColumns = ["subjectId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("subjectId")]
+)
+data class Book(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val subjectId: Long,
+    val title: String,
+    val uri: String,
+    val lastPage: Int = 0
+)
+
 data class SubjectStats(
     val subjectId: Long,
     val totalSeconds: Long

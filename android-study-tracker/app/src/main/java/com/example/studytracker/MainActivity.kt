@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.MenuBook
@@ -23,11 +24,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.studytracker.ui.StudyViewModel
+import com.example.studytracker.ui.screens.BooksScreen
+import com.example.studytracker.ui.screens.ReaderScreen
 import com.example.studytracker.ui.screens.StatsScreen
 import com.example.studytracker.ui.screens.SubjectsScreen
 import com.example.studytracker.ui.screens.TasksScreen
@@ -54,6 +59,7 @@ private val navItems = listOf(
     NavItem("subjects", R.string.nav_subjects, Icons.Default.MenuBook),
     NavItem("tasks", R.string.nav_tasks, Icons.Default.Checklist),
     NavItem("timer", R.string.nav_timer, Icons.Default.Timer),
+    NavItem("books", R.string.nav_reading, Icons.Default.AutoStories),
     NavItem("stats", R.string.nav_stats, Icons.Default.BarChart)
 )
 
@@ -66,23 +72,29 @@ fun StudyTrackerApp(viewModel: StudyViewModel = viewModel()) {
     val subjects by viewModel.subjects.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
     val stats by viewModel.stats.collectAsState()
+    val books by viewModel.books.collectAsState()
+
+    // В читалке нижняя панель скрыта, чтобы не мешать чтению
+    val showBottomBar = navItems.any { it.route == currentRoute }
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                navItems.forEach { item ->
-                    NavigationBarItem(
-                        selected = currentRoute == item.route,
-                        onClick = {
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(item.icon, contentDescription = null) },
-                        label = { Text(stringResource(item.labelRes)) }
-                    )
+            if (showBottomBar) {
+                NavigationBar {
+                    navItems.forEach { item ->
+                        NavigationBarItem(
+                            selected = currentRoute == item.route,
+                            onClick = {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = { Icon(item.icon, contentDescription = null) },
+                            label = { Text(stringResource(item.labelRes)) }
+                        )
+                    }
                 }
             }
         }
@@ -95,6 +107,18 @@ fun StudyTrackerApp(viewModel: StudyViewModel = viewModel()) {
             composable("subjects") { SubjectsScreen(viewModel, subjects) }
             composable("tasks") { TasksScreen(viewModel, tasks, subjects) }
             composable("timer") { TimerScreen(viewModel, subjects) }
+            composable("books") {
+                BooksScreen(viewModel, books, subjects) { bookId ->
+                    navController.navigate("reader/$bookId")
+                }
+            }
+            composable(
+                "reader/{bookId}",
+                arguments = listOf(navArgument("bookId") { type = NavType.LongType })
+            ) { entry ->
+                val bookId = entry.arguments?.getLong("bookId") ?: 0L
+                ReaderScreen(viewModel, bookId) { navController.popBackStack() }
+            }
             composable("stats") { StatsScreen(viewModel, subjects, tasks, stats) }
         }
     }

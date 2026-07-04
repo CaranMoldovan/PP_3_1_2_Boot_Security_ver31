@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.studytracker.data.AppDatabase
+import com.example.studytracker.data.Book
 import com.example.studytracker.data.StudySession
 import com.example.studytracker.data.StudyTask
 import com.example.studytracker.data.Subject
@@ -28,6 +29,7 @@ class StudyViewModel(app: Application) : AndroidViewModel(app) {
     val tasks: StateFlow<List<StudyTask>> = db.taskDao().getAll().stateInVm(emptyList())
     val sessions: StateFlow<List<StudySession>> = db.sessionDao().getAll().stateInVm(emptyList())
     val stats: StateFlow<List<SubjectStats>> = db.sessionDao().getStatsBySubject().stateInVm(emptyList())
+    val books: StateFlow<List<Book>> = db.bookDao().getAll().stateInVm(emptyList())
 
     // --- Таймер занятия ---
     var timerSubjectId by mutableStateOf<Long?>(null)
@@ -97,6 +99,33 @@ class StudyViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteTask(task: StudyTask) = viewModelScope.launch {
         db.taskDao().delete(task)
     }
+
+    // --- Чтение PDF ---
+    fun addBook(subjectId: Long, title: String, uri: String) = viewModelScope.launch {
+        db.bookDao().insert(Book(subjectId = subjectId, title = title.trim(), uri = uri))
+    }
+
+    fun deleteBook(book: Book) = viewModelScope.launch {
+        db.bookDao().delete(book)
+    }
+
+    /**
+     * Вызывается при закрытии читалки: запоминает страницу и записывает
+     * время чтения как учебную сессию по предмету книги.
+     */
+    fun finishReading(book: Book, page: Int, startTime: Long, durationSeconds: Long) =
+        viewModelScope.launch {
+            db.bookDao().updatePage(book.id, page)
+            if (durationSeconds >= 5) {
+                db.sessionDao().insert(
+                    StudySession(
+                        subjectId = book.subjectId,
+                        startTime = startTime,
+                        durationSeconds = durationSeconds
+                    )
+                )
+            }
+        }
 
     private fun <T> Flow<T>.stateInVm(initial: T): StateFlow<T> =
         stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initial)

@@ -29,6 +29,18 @@
     <string name="stop">Стоп</string>
     <string name="timer_hint">Время сохранится в статистику после остановки</string>
 
+    <string name="nav_reading">Чтение</string>
+    <string name="books_title">Чтение PDF</string>
+    <string name="books_empty">Добавьте PDF-файл кнопкой +</string>
+    <string name="new_book">Новый PDF</string>
+    <string name="book_title">Название</string>
+    <string name="page_number">стр. %1$d</string>
+    <string name="delete_book_title">Удалить PDF из списка?</string>
+    <string name="delete_book_message">«%1$s» будет убран из списка. Сам файл останется на устройстве.</string>
+    <string name="pdf_open_error">Не удалось открыть PDF. Возможно, файл был перемещён или удалён.</string>
+    <string name="reading_counts_hint">Время чтения будет записываться на выбранный предмет</string>
+    <string name="back">Назад</string>
+
     <string name="stats_title">Статистика</string>
     <string name="total_time">Всего занимался</string>
     <string name="tasks_done">Задания выполнены</string>
