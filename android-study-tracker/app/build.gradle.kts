@@ -17,6 +17,17 @@ android {
         versionName = "1.0"
     }
 
+    // Постоянный отладочный ключ, чтобы APK из CI обновлялся поверх
+    // предыдущей установки без конфликта подписей
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
