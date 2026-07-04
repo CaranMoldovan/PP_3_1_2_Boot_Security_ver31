@@ -50,6 +50,24 @@ interface BookDao {
 }
 
 @Dao
+interface QuizDao {
+    @Query("SELECT * FROM quizzes ORDER BY title")
+    fun getAll(): Flow<List<Quiz>>
+
+    @Insert
+    suspend fun insert(quiz: Quiz): Long
+
+    @Query(
+        "UPDATE quizzes SET lastScore = :score, " +
+            "bestScore = MAX(COALESCE(bestScore, 0), :score) WHERE id = :quizId"
+    )
+    suspend fun saveResult(quizId: Long, score: Int)
+
+    @Delete
+    suspend fun delete(quiz: Quiz)
+}
+
+@Dao
 interface SessionDao {
     @Query("SELECT * FROM sessions ORDER BY startTime DESC")
     fun getAll(): Flow<List<StudySession>>

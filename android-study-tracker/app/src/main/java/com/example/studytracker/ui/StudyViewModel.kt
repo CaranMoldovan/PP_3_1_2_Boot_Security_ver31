@@ -9,6 +9,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.studytracker.data.AppDatabase
 import com.example.studytracker.data.Book
+import com.example.studytracker.data.ParsedQuiz
+import com.example.studytracker.data.Quiz
+import com.example.studytracker.data.QuizParser
 import com.example.studytracker.data.StudySession
 import com.example.studytracker.data.StudyTask
 import com.example.studytracker.data.Subject
@@ -30,6 +33,7 @@ class StudyViewModel(app: Application) : AndroidViewModel(app) {
     val sessions: StateFlow<List<StudySession>> = db.sessionDao().getAll().stateInVm(emptyList())
     val stats: StateFlow<List<SubjectStats>> = db.sessionDao().getStatsBySubject().stateInVm(emptyList())
     val books: StateFlow<List<Book>> = db.bookDao().getAll().stateInVm(emptyList())
+    val quizzes: StateFlow<List<Quiz>> = db.quizDao().getAll().stateInVm(emptyList())
 
     // --- Таймер занятия ---
     var timerSubjectId by mutableStateOf<Long?>(null)
@@ -126,6 +130,26 @@ class StudyViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
         }
+
+    // --- Тесты ---
+    fun addQuiz(parsed: ParsedQuiz, title: String, subjectId: Long?) = viewModelScope.launch {
+        db.quizDao().insert(
+            Quiz(
+                subjectId = subjectId,
+                title = title.trim(),
+                questionsJson = QuizParser.questionsToJson(parsed.questions),
+                questionCount = parsed.questions.size
+            )
+        )
+    }
+
+    fun deleteQuiz(quiz: Quiz) = viewModelScope.launch {
+        db.quizDao().delete(quiz)
+    }
+
+    fun saveQuizResult(quizId: Long, score: Int) = viewModelScope.launch {
+        db.quizDao().saveResult(quizId, score)
+    }
 
     private fun <T> Flow<T>.stateInVm(initial: T): StateFlow<T> =
         stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initial)

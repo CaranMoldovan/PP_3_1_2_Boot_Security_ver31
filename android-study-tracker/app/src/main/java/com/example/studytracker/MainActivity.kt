@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -32,6 +33,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.studytracker.ui.StudyViewModel
 import com.example.studytracker.ui.screens.BooksScreen
+import com.example.studytracker.ui.screens.QuizTakingScreen
+import com.example.studytracker.ui.screens.QuizzesScreen
 import com.example.studytracker.ui.screens.ReaderScreen
 import com.example.studytracker.ui.screens.StatsScreen
 import com.example.studytracker.ui.screens.SubjectsScreen
@@ -60,6 +63,7 @@ private val navItems = listOf(
     NavItem("tasks", R.string.nav_tasks, Icons.Default.Checklist),
     NavItem("timer", R.string.nav_timer, Icons.Default.Timer),
     NavItem("books", R.string.nav_reading, Icons.Default.AutoStories),
+    NavItem("quizzes", R.string.nav_quizzes, Icons.Default.Quiz),
     NavItem("stats", R.string.nav_stats, Icons.Default.BarChart)
 )
 
@@ -73,6 +77,7 @@ fun StudyTrackerApp(viewModel: StudyViewModel = viewModel()) {
     val tasks by viewModel.tasks.collectAsState()
     val stats by viewModel.stats.collectAsState()
     val books by viewModel.books.collectAsState()
+    val quizzes by viewModel.quizzes.collectAsState()
 
     // В читалке нижняя панель скрыта, чтобы не мешать чтению
     val showBottomBar = navItems.any { it.route == currentRoute }
@@ -118,6 +123,18 @@ fun StudyTrackerApp(viewModel: StudyViewModel = viewModel()) {
             ) { entry ->
                 val bookId = entry.arguments?.getLong("bookId") ?: 0L
                 ReaderScreen(viewModel, bookId) { navController.popBackStack() }
+            }
+            composable("quizzes") {
+                QuizzesScreen(viewModel, quizzes, subjects) { quizId ->
+                    navController.navigate("quiz/$quizId")
+                }
+            }
+            composable(
+                "quiz/{quizId}",
+                arguments = listOf(navArgument("quizId") { type = NavType.LongType })
+            ) { entry ->
+                val quizId = entry.arguments?.getLong("quizId") ?: 0L
+                QuizTakingScreen(viewModel, quizId) { navController.popBackStack() }
             }
             composable("stats") { StatsScreen(viewModel, subjects, tasks, stats) }
         }

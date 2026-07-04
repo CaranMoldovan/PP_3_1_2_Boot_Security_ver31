@@ -71,6 +71,28 @@ data class Book(
     val lastPage: Int = 0
 )
 
+@Entity(
+    tableName = "quizzes",
+    foreignKeys = [
+        ForeignKey(
+            entity = Subject::class,
+            parentColumns = ["id"],
+            childColumns = ["subjectId"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
+    indices = [Index("subjectId")]
+)
+data class Quiz(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val subjectId: Long?,
+    val title: String,
+    val questionsJson: String,
+    val questionCount: Int,
+    val bestScore: Int? = null,
+    val lastScore: Int? = null
+)
+
 data class SubjectStats(
     val subjectId: Long,
     val totalSeconds: Long

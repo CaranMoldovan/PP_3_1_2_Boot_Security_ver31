@@ -41,6 +41,24 @@
     <string name="reading_counts_hint">Время чтения будет записываться на выбранный предмет</string>
     <string name="back">Назад</string>
 
+    <string name="nav_quizzes">Тесты</string>
+    <string name="quizzes_title">Тесты по модулям</string>
+    <string name="quizzes_empty">Импортируйте тест из JSON-файла кнопкой +</string>
+    <string name="new_quiz">Импорт теста</string>
+    <string name="quiz_title_label">Название</string>
+    <string name="no_subject">Без предмета</string>
+    <string name="questions_count">Вопросов: %1$d</string>
+    <string name="best_score">Лучший: %1$d/%2$d</string>
+    <string name="import_error_title">Не удалось импортировать тест</string>
+    <string name="question_progress">Вопрос %1$d из %2$d</string>
+    <string name="next">Далее</string>
+    <string name="finish">Завершить</string>
+    <string name="score_of">%1$d из %2$d</string>
+    <string name="try_again">Пройти заново</string>
+    <string name="to_list">К списку</string>
+    <string name="delete_quiz_title">Удалить тест?</string>
+    <string name="delete_quiz_message">«%1$s» будет удалён вместе с результатами.</string>
+
     <string name="stats_title">Статистика</string>
     <string name="total_time">Всего занимался</string>
     <string name="tasks_done">Задания выполнены</string>
