@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Учёба</string>
+
+    <string name="nav_subjects">Предметы</string>
+    <string name="nav_tasks">Задания</string>
+    <string name="nav_timer">Таймер</string>
+    <string name="nav_stats">Статистика</string>
+
+    <string name="subjects_title">Мои предметы</string>
+    <string name="subjects_empty">Добавьте первый предмет кнопкой +</string>
+    <string name="new_subject">Новый предмет</string>
+    <string name="subject_name">Название предмета</string>
+    <string name="delete_subject_title">Удалить предмет?</string>
+    <string name="delete_subject_message">«%1$s» будет удалён вместе с заданиями и записями времени.</string>
+
+    <string name="tasks_title">Задания</string>
+    <string name="tasks_empty">Заданий пока нет. Добавьте кнопкой +</string>
+    <string name="tasks_need_subject">Сначала добавьте предмет на вкладке «Предметы»</string>
+    <string name="new_task">Новое задание</string>
+    <string name="task_title">Что нужно сделать</string>
+    <string name="subject">Предмет</string>
+    <string name="no_deadline">Без срока</string>
+    <string name="pick_date">Срок</string>
+    <string name="clear">Убрать</string>
+
+    <string name="timer_title">Таймер занятий</string>
+    <string name="start">Начать</string>
+    <string name="stop">Стоп</string>
+    <string name="timer_hint">Время сохранится в статистику после остановки</string>
+
+    <string name="stats_title">Статистика</string>
+    <string name="total_time">Всего занимался</string>
+    <string name="tasks_done">Задания выполнены</string>
+    <string name="stats_empty">Данных пока нет — начните заниматься!</string>
+
+    <string name="add">Добавить</string>
+    <string name="delete">Удалить</string>
+    <string name="cancel">Отмена</string>
+    <string name="ok">ОК</string>
+</resources>
