@@ -3,14 +3,18 @@ name: Deploy personal VPN
 # Разворачивает личный VPN (VLESS + Reality, TCP) на твоём сервере по SSH.
 # Запускается вручную: вкладка Actions -> Deploy personal VPN -> Run workflow.
 #
-# Секреты репозитория (Settings -> Secrets and variables -> Actions):
-#   VPN_SSH_HOST         обязательный  IP или домен сервера (не панели Proxmox, а самой VM)
+# Доступ берётся из секретов репозитория (Settings -> Secrets and variables -> Actions):
+#   VPN_SSH_HOST         IP или домен сервера (самой VM, не панели Proxmox)
 #   VPN_SSH_KEY          приватный SSH-ключ целиком  ─┐ нужен один
 #   VPN_SSH_PASSWORD     пароль от SSH               ─┘ из двух
 #   VPN_SSH_USER         необязательный, по умолчанию root
 #   VPN_SSH_PORT         необязательный, по умолчанию 22
 #   VPN_SSH_KNOWN_HOSTS  необязательный, строка known_hosts для проверки хоста;
 #                        если не задан — ключ сервера принимается при первом подключении
+#
+# Если секретов нет, хост и пароль можно передать полями ssh_host / ssh_password при
+# запуске. В логах они маскируются, но остаются в метаданных запуска — это запасной
+# путь для разового деплоя, после которого пароль стоит сменить. Секреты надёжнее.
 #
 # Ссылка подключения в лог по умолчанию НЕ печатается: она уезжает в артефакт
 # запуска (хранится сутки), потому что логи Actions живут куда дольше.
@@ -39,6 +43,14 @@ on:
         description: "Показать ссылку прямо в логе запуска"
         type: boolean
         default: false
+      ssh_host:
+        description: "IP сервера — только если не задан секрет VPN_SSH_HOST"
+        type: string
+        default: ""
+      ssh_password:
+        description: "Пароль SSH — запасной путь, остаётся в метаданных запуска"
+        type: string
+        default: ""
 
 concurrency:
   group: deploy-vpn
@@ -51,39 +63,61 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Проверить входные данные и секреты
+      - name: Подготовить доступ
         env:
-          HOST: ${{ secrets.VPN_SSH_HOST }}
+          S_HOST: ${{ secrets.VPN_SSH_HOST }}
+          S_PASSWORD: ${{ secrets.VPN_SSH_PASSWORD }}
+          S_USER: ${{ secrets.VPN_SSH_USER }}
+          S_PORT: ${{ secrets.VPN_SSH_PORT }}
           KEY: ${{ secrets.VPN_SSH_KEY }}
-          PASSWORD: ${{ secrets.VPN_SSH_PASSWORD }}
+          IN_HOST: ${{ inputs.ssh_host }}
+          IN_PASSWORD: ${{ inputs.ssh_password }}
           IN_PORT: ${{ inputs.port }}
           IN_SNI: ${{ inputs.sni }}
           IN_LABEL: ${{ inputs.label }}
         run: |
           fail() { echo "::error::$1"; exit 1; }
-          [ -n "$HOST" ] || fail "нет секрета VPN_SSH_HOST"
-          [ -n "$KEY" ] || [ -n "$PASSWORD" ] || fail "нужен секрет VPN_SSH_KEY или VPN_SSH_PASSWORD"
+
+          HOST="${S_HOST:-$IN_HOST}"
+          PASSWORD="${S_PASSWORD:-$IN_PASSWORD}"
+          USER_NAME="${S_USER:-root}"
+          SSH_PORT="${S_PORT:-22}"
+
+          # Пароль не должен попасть в лог ни из нашего вывода, ни из чужого.
+          if [ -n "$PASSWORD" ]; then echo "::add-mask::$PASSWORD"; fi
+          if [ -n "$HOST" ]; then echo "::add-mask::$HOST"; fi
+
+          [ -n "$HOST" ] || fail "нет ни секрета VPN_SSH_HOST, ни поля ssh_host"
+          [ -n "$KEY" ] || [ -n "$PASSWORD" ] || fail "нет ни SSH-ключа, ни пароля"
+          [[ "$HOST" =~ ^[A-Za-z0-9.:_-]+$ ]] || fail "странный адрес сервера"
+          [[ "$SSH_PORT" =~ ^[0-9]{1,5}$ ]] || fail "SSH-порт должен быть числом"
+          [[ "$USER_NAME" =~ ^[A-Za-z0-9._-]+$ ]] || fail "странное имя пользователя"
           [[ "$IN_PORT" =~ ^[0-9]{1,5}$ ]] && [ "$IN_PORT" -ge 1 ] && [ "$IN_PORT" -le 65535 ] \
-            || fail "порт должен быть числом 1..65535"
+            || fail "порт VPN должен быть числом 1..65535"
           [[ "$IN_SNI" =~ ^[A-Za-z0-9.-]+$ ]] || fail "SNI: только буквы, цифры, точки и дефисы"
           [[ "$IN_LABEL" =~ ^[A-Za-z0-9_-]{1,32}$ ]] || fail "имя профиля: латиница, цифры, _ и -, до 32 символов"
 
+          {
+            echo "VPN_HOST<<EOF"; printf '%s\n' "$HOST"; echo "EOF"
+            echo "VPN_PASSWORD<<EOF"; printf '%s\n' "$PASSWORD"; echo "EOF"
+            echo "VPN_USER=$USER_NAME"
+            echo "VPN_SSH_PORT=$SSH_PORT"
+          } >> "$GITHUB_ENV"
+
+          if [ -n "$KEY" ]; then echo "Авторизация: SSH-ключ"; else echo "Авторизация: пароль"; fi
+
       - name: Настроить SSH
         env:
-          HOST: ${{ secrets.VPN_SSH_HOST }}
-          SSH_PORT: ${{ secrets.VPN_SSH_PORT }}
           KEY: ${{ secrets.VPN_SSH_KEY }}
-          PASSWORD: ${{ secrets.VPN_SSH_PASSWORD }}
           KNOWN_HOSTS: ${{ secrets.VPN_SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          PORT="${SSH_PORT:-22}"
           if [ -n "$KNOWN_HOSTS" ]; then
             printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           else
-            ssh-keyscan -T 15 -p "$PORT" "$HOST" > ~/.ssh/known_hosts 2>/dev/null || true
+            ssh-keyscan -T 15 -p "$VPN_SSH_PORT" "$VPN_HOST" > ~/.ssh/known_hosts 2>/dev/null || true
             [ -s ~/.ssh/known_hosts ] || {
-              echo "::error::сервер $HOST не отвечает по SSH на порту $PORT — проверь, что VM запущена и порт открыт наружу"
+              echo "::error::сервер не отвечает по SSH на порту $VPN_SSH_PORT — проверь, что VM запущена и порт открыт наружу"
               exit 1
             }
           fi
@@ -91,46 +125,40 @@ jobs:
           if [ -n "$KEY" ]; then
             printf '%s\n' "$KEY" > ~/.ssh/id_deploy
             chmod 600 ~/.ssh/id_deploy
-          fi
-          if [ -z "$KEY" ] && [ -n "$PASSWORD" ]; then
+          else
             sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
           fi
 
       - name: Развернуть VPN на сервере
         env:
-          HOST: ${{ secrets.VPN_SSH_HOST }}
-          SSH_USER: ${{ secrets.VPN_SSH_USER }}
-          SSH_PORT: ${{ secrets.VPN_SSH_PORT }}
           KEY: ${{ secrets.VPN_SSH_KEY }}
-          SSHPASS: ${{ secrets.VPN_SSH_PASSWORD }}
           IN_PORT: ${{ inputs.port }}
           IN_SNI: ${{ inputs.sni }}
           IN_LABEL: ${{ inputs.label }}
         run: |
           set -o pipefail
-          USER_NAME="${SSH_USER:-root}"
-          PORT="${SSH_PORT:-22}"
 
           if [ "${{ inputs.installer }}" = "systemd" ]; then
             SCRIPT=deploy/vpn/quick-console.sh
           else
             SCRIPT=deploy/vpn/install.sh
           fi
-          echo "Ставлю через $SCRIPT на $USER_NAME@***:$PORT"
+          echo "Ставлю через $SCRIPT, порт $IN_PORT, SNI $IN_SNI"
 
           # NO_QR=1 — чтобы QR-код (в нём закодирована та же ссылка) не попал в лог.
           REMOTE="NO_QR=1 PORT=$IN_PORT SNI=$IN_SNI LABEL=$IN_LABEL"
-          [ "$USER_NAME" = "root" ] || REMOTE="sudo -n $REMOTE"
+          [ "$VPN_USER" = "root" ] || REMOTE="sudo -n $REMOTE"
 
           if [ -n "$KEY" ]; then
             SSH=(ssh -i ~/.ssh/id_deploy -o BatchMode=yes)
           else
+            export SSHPASS="$VPN_PASSWORD"
             SSH=(sshpass -e ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no)
           fi
 
           rc=0
-          "${SSH[@]}" -p "$PORT" -o ConnectTimeout=20 -o ServerAliveInterval=30 \
-            "$USER_NAME@$HOST" "$REMOTE bash -s" < "$SCRIPT" > install-output.txt 2>&1 || rc=$?
+          "${SSH[@]}" -p "$VPN_SSH_PORT" -o ConnectTimeout=20 -o ServerAliveInterval=30 \
+            "$VPN_USER@$VPN_HOST" "$REMOTE bash -s" < "$SCRIPT" > install-output.txt 2>&1 || rc=$?
 
           grep -oP 'vless://\S+' install-output.txt | tail -1 > vpn-link.txt || true
           # в лог — весь вывод, кроме самой ссылки
