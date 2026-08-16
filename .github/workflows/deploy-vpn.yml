@@ -12,12 +12,15 @@ name: Deploy personal VPN
 #   VPN_SSH_KNOWN_HOSTS  необязательный, строка known_hosts для проверки хоста;
 #                        если не задан — ключ сервера принимается при первом подключении
 #
-# Если секретов нет, хост и пароль можно передать полями ssh_host / ssh_password при
-# запуске. В логах они маскируются, но остаются в метаданных запуска — это запасной
-# путь для разового деплоя, после которого пароль стоит сменить. Секреты надёжнее.
+# Доступ берётся ТОЛЬКО из секретов: параметры запуска (workflow_dispatch inputs)
+# сохраняются в метаданных запуска и в публичном репозитории видны кому угодно,
+# поэтому пароли и адреса через них не передаются.
 #
-# Ссылка подключения в лог по умолчанию НЕ печатается: она уезжает в артефакт
-# запуска (хранится сутки), потому что логи Actions живут куда дольше.
+# Ссылка подключения — это ключ доступа к серверу, поэтому:
+#   * в приватном репозитории она уезжает в артефакт запуска (хранится сутки),
+#     в лог — только если явно попросить галкой show_link_in_log;
+#   * в публичном репозитории (логи и артефакты видны всем) она не выгружается
+#     вообще и остаётся лежать на сервере: /root/vpn-link.txt или /opt/xray-vpn/.env.
 
 on:
   workflow_dispatch:
@@ -40,17 +43,9 @@ on:
         type: string
         default: MyVPN
       show_link_in_log:
-        description: "Показать ссылку прямо в логе запуска"
+        description: "Показать ссылку в логе (игнорируется в публичном репозитории)"
         type: boolean
         default: false
-      ssh_host:
-        description: "IP сервера — только если не задан секрет VPN_SSH_HOST"
-        type: string
-        default: ""
-      ssh_password:
-        description: "Пароль SSH — запасной путь, остаётся в метаданных запуска"
-        type: string
-        default: ""
 
 concurrency:
   group: deploy-vpn
@@ -70,16 +65,14 @@ jobs:
           S_USER: ${{ secrets.VPN_SSH_USER }}
           S_PORT: ${{ secrets.VPN_SSH_PORT }}
           KEY: ${{ secrets.VPN_SSH_KEY }}
-          IN_HOST: ${{ inputs.ssh_host }}
-          IN_PASSWORD: ${{ inputs.ssh_password }}
           IN_PORT: ${{ inputs.port }}
           IN_SNI: ${{ inputs.sni }}
           IN_LABEL: ${{ inputs.label }}
         run: |
           fail() { echo "::error::$1"; exit 1; }
 
-          HOST="${S_HOST:-$IN_HOST}"
-          PASSWORD="${S_PASSWORD:-$IN_PASSWORD}"
+          HOST="$S_HOST"
+          PASSWORD="$S_PASSWORD"
           USER_NAME="${S_USER:-root}"
           SSH_PORT="${S_PORT:-22}"
 
@@ -87,8 +80,8 @@ jobs:
           if [ -n "$PASSWORD" ]; then echo "::add-mask::$PASSWORD"; fi
           if [ -n "$HOST" ]; then echo "::add-mask::$HOST"; fi
 
-          [ -n "$HOST" ] || fail "нет ни секрета VPN_SSH_HOST, ни поля ssh_host"
-          [ -n "$KEY" ] || [ -n "$PASSWORD" ] || fail "нет ни SSH-ключа, ни пароля"
+          [ -n "$HOST" ] || fail "не задан секрет VPN_SSH_HOST"
+          [ -n "$KEY" ] || [ -n "$PASSWORD" ] || fail "не задан ни секрет VPN_SSH_KEY, ни VPN_SSH_PASSWORD"
           [[ "$HOST" =~ ^[A-Za-z0-9.:_-]+$ ]] || fail "странный адрес сервера"
           [[ "$SSH_PORT" =~ ^[0-9]{1,5}$ ]] || fail "SSH-порт должен быть числом"
           [[ "$USER_NAME" =~ ^[A-Za-z0-9._-]+$ ]] || fail "странное имя пользователя"
@@ -132,6 +125,7 @@ jobs:
       - name: Развернуть VPN на сервере
         env:
           KEY: ${{ secrets.VPN_SSH_KEY }}
+          PUBLIC_REPO: ${{ !github.event.repository.private }}
           IN_PORT: ${{ inputs.port }}
           IN_SNI: ${{ inputs.sni }}
           IN_LABEL: ${{ inputs.label }}
@@ -170,15 +164,27 @@ jobs:
           fi
           [ -s vpn-link.txt ] || { echo "::error::скрипт отработал, но ссылку в выводе не нашёл"; exit 1; }
 
-          {
-            echo "### VPN развёрнут"
-            echo
-            echo "Ссылка не печатается здесь намеренно — скачай артефакт **vpn-link** этого запуска."
-            echo "Копия на сервере: \`/opt/xray-vpn/.env\` (docker) или \`/root/vpn-link.txt\` (systemd)."
-          } >> "$GITHUB_STEP_SUMMARY"
+          # В публичном репозитории логи и артефакты доступны кому угодно, поэтому
+          # ссылка не покидает сервер — здесь не остаётся даже её следа.
+          if [ "$PUBLIC_REPO" = "true" ]; then
+            rm -f vpn-link.txt install-output.txt
+            {
+              echo "### VPN развёрнут"
+              echo
+              echo "Репозиторий публичный, поэтому ссылка отсюда не выгружается."
+              echo "Забери её на сервере: \`cat /root/vpn-link.txt\` (systemd) или \`bash /opt/xray-vpn/link.sh\` (docker)."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### VPN развёрнут"
+              echo
+              echo "Ссылка не печатается здесь намеренно — скачай артефакт **vpn-link** этого запуска."
+              echo "Копия на сервере: \`/opt/xray-vpn/.env\` (docker) или \`/root/vpn-link.txt\` (systemd)."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Выложить ссылку артефактом
-        if: always()
+        if: always() && github.event.repository.private
         uses: actions/upload-artifact@v4
         with:
           name: vpn-link
@@ -189,5 +195,5 @@ jobs:
           if-no-files-found: ignore
 
       - name: Показать ссылку в логе
-        if: ${{ inputs.show_link_in_log }}
+        if: ${{ inputs.show_link_in_log && github.event.repository.private }}
         run: cat vpn-link.txt
