@@ -13,6 +13,7 @@
 #   XRAY_IMAGE=ghcr.io/xtls/xray-core:latest
 #   BLOCK_TORRENT=1                резать bittorrent (1) или нет (0)
 #   INSTALL_DIR=/opt/xray-vpn
+#   NO_QR=0                        1 — не печатать QR (например, при запуске из CI)
 #
 set -euo pipefail
 
@@ -22,6 +23,7 @@ LABEL="${LABEL:-MyVPN}"
 XRAY_IMAGE="${XRAY_IMAGE:-ghcr.io/xtls/xray-core:latest}"
 BLOCK_TORRENT="${BLOCK_TORRENT:-1}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/xray-vpn}"
+NO_QR="${NO_QR:-0}"
 
 log()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[!]\033[0m %s\n' "$*" >&2; }
@@ -229,7 +231,9 @@ cd "$(dirname "$(readlink -f "$0")")"
 LINK="vless://${UUID}@${SERVER_IP}:${PORT}?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=chrome&sni=${SNI}&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}#${LABEL}"
 echo "$LINK"
 echo
-command -v qrencode >/dev/null 2>&1 && qrencode -t ANSIUTF8 -m 1 "$LINK"
+if [ "${NO_QR:-0}" != "1" ] && command -v qrencode >/dev/null 2>&1; then
+    qrencode -t ANSIUTF8 -m 1 "$LINK"
+fi
 EOS
 
 cat > uninstall.sh <<'EOS'
@@ -298,7 +302,7 @@ echo "=============================================================="
 echo
 echo "$LINK"
 echo
-if command -v qrencode >/dev/null 2>&1; then
+if [ "$NO_QR" != "1" ] && command -v qrencode >/dev/null 2>&1; then
     qrencode -t ANSIUTF8 -m 1 "$LINK"
     echo
 fi

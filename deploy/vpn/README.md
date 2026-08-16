@@ -73,6 +73,44 @@ sudo PORT=8443 SNI=www.nvidia.com LABEL=Home bash install.sh
 Требования к `SNI`: чужой сайт с TLS 1.3 и HTTP/2, не заблокированный в твоей стране и не CDN твоего же
 провайдера. Скрипт проверяет это и предупреждает, если сайт не подходит.
 
+## Установка через GitHub Actions
+
+Если не хочется возиться с scp и консолью — раскатать может сам GitHub: раннер заходит
+на сервер по SSH и выполняет установку. Workflow: [`.github/workflows/deploy-vpn.yml`](../../.github/workflows/deploy-vpn.yml).
+
+**Что нужно один раз настроить** — Settings → Secrets and variables → Actions → New repository secret:
+
+| Секрет | Обязателен | Что кладём |
+|---|---|---|
+| `VPN_SSH_HOST` | да | IP или домен **виртуалки** (не панели Proxmox) |
+| `VPN_SSH_KEY` | один из двух | приватный SSH-ключ целиком, вместе со строками `-----BEGIN…/END…-----` |
+| `VPN_SSH_PASSWORD` | один из двух | пароль от SSH, если ключа нет |
+| `VPN_SSH_USER` | нет | по умолчанию `root`; для не-root нужен passwordless sudo |
+| `VPN_SSH_PORT` | нет | по умолчанию `22` |
+| `VPN_SSH_KNOWN_HOSTS` | нет | строка `known_hosts` для сервера; без неё ключ хоста принимается при первом коннекте |
+
+**Запуск:** вкладка **Actions** → *Deploy personal VPN* → **Run workflow**. Там же выбираются
+способ установки (`docker` / `systemd`), порт, SNI и имя профиля.
+
+**Где взять ссылку:** внизу страницы запуска, артефакт **vpn-link** (`vpn-link.txt`).
+В лог ссылка намеренно не печатается — логи Actions хранятся долго, а артефакт живёт сутки.
+Если всё-таки удобнее в логе, поставь галку `show_link_in_log` при запуске.
+
+Требования: SSH-порт виртуалки должен быть доступен из интернета (раннеры GitHub ходят
+с публичных адресов), и на сервере должен быть открыт наружу порт VPN.
+
+### Или просто скачать скрипт с GitHub на сервер
+
+Репозиторий приватный, поэтому нужен токен (fine-grained PAT с правом *Contents: read*):
+
+```bash
+curl -fsSL -H "Authorization: Bearer ghp_ТВОЙ_ТОКЕН" \
+  https://raw.githubusercontent.com/CaranMoldovan/PP_3_1_2_Boot_Security_ver31/claude/deploy-project-vpn-server-in5pu0/deploy/vpn/quick-console.sh \
+  | sudo bash
+```
+
+Если репозиторий сделать публичным — то же самое без заголовка с токеном.
+
 ## Подключение
 
 Ссылка вида `vless://…` вставляется в клиент как есть (или сканируется QR):

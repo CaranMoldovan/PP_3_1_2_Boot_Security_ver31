@@ -14,6 +14,7 @@ set -euo pipefail
 PORT="${PORT:-443}"
 SNI="${SNI:-www.microsoft.com}"
 LABEL="${LABEL:-MyVPN}"
+NO_QR="${NO_QR:-0}"
 
 [ "$(id -u)" -eq 0 ] || { echo "Нужен root: sudo bash quick-console.sh" >&2; exit 1; }
 
@@ -95,5 +96,7 @@ echo
 echo "=============== ТВОЯ ССЫЛКА (никому не давай) ==============="
 echo "$LINK"
 echo
-command -v qrencode >/dev/null 2>&1 && qrencode -t ANSIUTF8 -m 1 "$LINK"
+if [ "$NO_QR" != "1" ] && command -v qrencode >/dev/null 2>&1; then
+    qrencode -t ANSIUTF8 -m 1 "$LINK"
+fi
 echo "Сохранена в /root/vpn-link.txt"

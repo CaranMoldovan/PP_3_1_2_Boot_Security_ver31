@@ -1,0 +1,165 @@
+name: Deploy personal VPN
+
+# Разворачивает личный VPN (VLESS + Reality, TCP) на твоём сервере по SSH.
+# Запускается вручную: вкладка Actions -> Deploy personal VPN -> Run workflow.
+#
+# Секреты репозитория (Settings -> Secrets and variables -> Actions):
+#   VPN_SSH_HOST         обязательный  IP или домен сервера (не панели Proxmox, а самой VM)
+#   VPN_SSH_KEY          приватный SSH-ключ целиком  ─┐ нужен один
+#   VPN_SSH_PASSWORD     пароль от SSH               ─┘ из двух
+#   VPN_SSH_USER         необязательный, по умолчанию root
+#   VPN_SSH_PORT         необязательный, по умолчанию 22
+#   VPN_SSH_KNOWN_HOSTS  необязательный, строка known_hosts для проверки хоста;
+#                        если не задан — ключ сервера принимается при первом подключении
+#
+# Ссылка подключения в лог по умолчанию НЕ печатается: она уезжает в артефакт
+# запуска (хранится сутки), потому что логи Actions живут куда дольше.
+
+on:
+  workflow_dispatch:
+    inputs:
+      installer:
+        description: "Способ установки"
+        type: choice
+        default: docker
+        options: [docker, systemd]
+      port:
+        description: "Порт сервера"
+        type: string
+        default: "443"
+      sni:
+        description: "Сайт для маскировки (Reality SNI)"
+        type: string
+        default: www.microsoft.com
+      label:
+        description: "Имя профиля в клиенте"
+        type: string
+        default: MyVPN
+      show_link_in_log:
+        description: "Показать ссылку прямо в логе запуска"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-vpn
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Проверить входные данные и секреты
+        env:
+          HOST: ${{ secrets.VPN_SSH_HOST }}
+          KEY: ${{ secrets.VPN_SSH_KEY }}
+          PASSWORD: ${{ secrets.VPN_SSH_PASSWORD }}
+          IN_PORT: ${{ inputs.port }}
+          IN_SNI: ${{ inputs.sni }}
+          IN_LABEL: ${{ inputs.label }}
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+          [ -n "$HOST" ] || fail "нет секрета VPN_SSH_HOST"
+          [ -n "$KEY" ] || [ -n "$PASSWORD" ] || fail "нужен секрет VPN_SSH_KEY или VPN_SSH_PASSWORD"
+          [[ "$IN_PORT" =~ ^[0-9]{1,5}$ ]] && [ "$IN_PORT" -ge 1 ] && [ "$IN_PORT" -le 65535 ] \
+            || fail "порт должен быть числом 1..65535"
+          [[ "$IN_SNI" =~ ^[A-Za-z0-9.-]+$ ]] || fail "SNI: только буквы, цифры, точки и дефисы"
+          [[ "$IN_LABEL" =~ ^[A-Za-z0-9_-]{1,32}$ ]] || fail "имя профиля: латиница, цифры, _ и -, до 32 символов"
+
+      - name: Настроить SSH
+        env:
+          HOST: ${{ secrets.VPN_SSH_HOST }}
+          SSH_PORT: ${{ secrets.VPN_SSH_PORT }}
+          KEY: ${{ secrets.VPN_SSH_KEY }}
+          PASSWORD: ${{ secrets.VPN_SSH_PASSWORD }}
+          KNOWN_HOSTS: ${{ secrets.VPN_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          PORT="${SSH_PORT:-22}"
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -T 15 -p "$PORT" "$HOST" > ~/.ssh/known_hosts 2>/dev/null || true
+            [ -s ~/.ssh/known_hosts ] || {
+              echo "::error::сервер $HOST не отвечает по SSH на порту $PORT — проверь, что VM запущена и порт открыт наружу"
+              exit 1
+            }
+          fi
+          chmod 600 ~/.ssh/known_hosts
+          if [ -n "$KEY" ]; then
+            printf '%s\n' "$KEY" > ~/.ssh/id_deploy
+            chmod 600 ~/.ssh/id_deploy
+          fi
+          if [ -z "$KEY" ] && [ -n "$PASSWORD" ]; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+          fi
+
+      - name: Развернуть VPN на сервере
+        env:
+          HOST: ${{ secrets.VPN_SSH_HOST }}
+          SSH_USER: ${{ secrets.VPN_SSH_USER }}
+          SSH_PORT: ${{ secrets.VPN_SSH_PORT }}
+          KEY: ${{ secrets.VPN_SSH_KEY }}
+          SSHPASS: ${{ secrets.VPN_SSH_PASSWORD }}
+          IN_PORT: ${{ inputs.port }}
+          IN_SNI: ${{ inputs.sni }}
+          IN_LABEL: ${{ inputs.label }}
+        run: |
+          set -o pipefail
+          USER_NAME="${SSH_USER:-root}"
+          PORT="${SSH_PORT:-22}"
+
+          if [ "${{ inputs.installer }}" = "systemd" ]; then
+            SCRIPT=deploy/vpn/quick-console.sh
+          else
+            SCRIPT=deploy/vpn/install.sh
+          fi
+          echo "Ставлю через $SCRIPT на $USER_NAME@***:$PORT"
+
+          # NO_QR=1 — чтобы QR-код (в нём закодирована та же ссылка) не попал в лог.
+          REMOTE="NO_QR=1 PORT=$IN_PORT SNI=$IN_SNI LABEL=$IN_LABEL"
+          [ "$USER_NAME" = "root" ] || REMOTE="sudo -n $REMOTE"
+
+          if [ -n "$KEY" ]; then
+            SSH=(ssh -i ~/.ssh/id_deploy -o BatchMode=yes)
+          else
+            SSH=(sshpass -e ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no)
+          fi
+
+          rc=0
+          "${SSH[@]}" -p "$PORT" -o ConnectTimeout=20 -o ServerAliveInterval=30 \
+            "$USER_NAME@$HOST" "$REMOTE bash -s" < "$SCRIPT" > install-output.txt 2>&1 || rc=$?
+
+          grep -oP 'vless://\S+' install-output.txt | tail -1 > vpn-link.txt || true
+          # в лог — весь вывод, кроме самой ссылки
+          grep -vP 'vless://' install-output.txt || true
+
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::установка завершилась с кодом $rc, подробности выше"
+            exit "$rc"
+          fi
+          [ -s vpn-link.txt ] || { echo "::error::скрипт отработал, но ссылку в выводе не нашёл"; exit 1; }
+
+          {
+            echo "### VPN развёрнут"
+            echo
+            echo "Ссылка не печатается здесь намеренно — скачай артефакт **vpn-link** этого запуска."
+            echo "Копия на сервере: \`/opt/xray-vpn/.env\` (docker) или \`/root/vpn-link.txt\` (systemd)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Выложить ссылку артефактом
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpn-link
+          path: |
+            vpn-link.txt
+            install-output.txt
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Показать ссылку в логе
+        if: ${{ inputs.show_link_in_log }}
+        run: cat vpn-link.txt
